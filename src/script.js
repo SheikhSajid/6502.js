@@ -100,7 +100,25 @@ class Olc6502 {
   XXX() {}
 
   // Signals
-  clock() {}
+  clock() {
+    if (this.cycles !== 0) {
+      this.cycles--;
+      return;
+    }
+
+    // Read from the program counter
+    const opcode = this._read(this._pc); // 1 byte
+    this._pc++;
+
+    // Lookup the opcode and execute the instruction
+    const instruction = this.lookup[opcode];
+    this.cycles = instruction.cycles;
+    const additionalCycles1 = this[instruction.addrMode]();
+    const additionalCycles2 = this[instruction.operate]();
+
+    this.cycles += (additionalCycles1 & additionalCycles2);
+  }
+
   reset() {}
   irq() {}
   nmi() {}
