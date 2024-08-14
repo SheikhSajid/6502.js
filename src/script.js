@@ -77,9 +77,133 @@ class Olc6502 {
   fetch() {}
 
   // Addressing Modes
-  IMP() {}; IMM() {}; ZP0() {}; ZPX() {};
-  ZPY() {}; REL() {}; ABS() {}; ABX() {};
-  ABY() {}; IND() {}; IZX() {}; IZY() {};
+  IMP() {
+    this.fetched = this._a;
+    return 0;
+  }
+  
+  IMM() {
+    this.addrAbs = this._pc++;
+    return 0;
+  };
+  
+  ZP0() {
+    this.addrAbs = this._read(this._pc);
+    this._pc++;
+    this.addrAbs &= 0x00FF;
+    return 0;
+  }
+  
+  ZPX() {
+    this.addrAbs = (this._read(this._pc) + this._x);
+    this._pc++;
+    this.addrAbs &= 0x00FF;
+    return 0;
+  }
+  
+  ZPY() {
+    this.addrAbs = (this._read(this._pc) + this._y);
+    this._pc++;
+    this.addrAbs &= 0x00FF;
+    return 0;
+  }
+  
+  REL() {
+    this.addrRel = this._read(this._pc);
+    this._pc++;
+    if (this.addrRel & 0x80) {
+      this.addrRel |= 0xFF00;
+    }
+    return 0;
+  }
+  
+  // Absolute: 16 bit address (total 3 byte instruction)
+  ABS() {
+    const lo = this._read(this._pc);
+    this._pc++;
+    const hi = this._read(this._pc);
+    this._pc++;
+
+    this.addrAbs = (hi << 8) | lo;
+    return 0;
+  }
+  
+  ABX() {
+    const lo = this._read(this._pc);
+    this._pc++;
+    const hi = this._read(this._pc);
+    this._pc++;
+
+    this.addrAbs = (hi << 8) | lo;
+    this.addrAbs += this._x;
+
+    if ((this.addrAbs & 0xFF00) !== (hi << 8)) {
+      return 1;
+    }
+
+    return 0;
+  }
+  
+  ABY() {
+    const lo = this._read(this._pc);
+    this._pc++;
+    const hi = this._read(this._pc);
+    this._pc++;
+
+    this.addrAbs = (hi << 8) | lo;
+    this.addrAbs += this._y;
+
+    if ((this.addrAbs & 0xFF00) !== (hi << 8)) {
+      return 1;
+    }
+
+    return 0;
+  }
+  
+  IND() {
+    const ptrLo = this._read(this._pc);
+    this._pc++;
+    const ptrHi = this._read(this._pc);
+    this._pc++;
+
+    const ptr = (ptrHi << 8) | ptrLo;
+
+    if (ptrLo === 0x00FF) { // Simulate page boundary hardware bug
+      this.addrAbs = (this._read(ptr & 0xFF00) << 8) | this._read(ptr + 0);
+    } else { // Behave normally
+      this.addrAbs = (this._read(ptr + 1) << 8) | this._read(ptr + 0);
+    }
+
+    return 0;
+  }
+  
+  IZX() {
+    const t = this._read(this._pc);
+    this._pc++;
+
+    const lo = this._read((t + this._x) & 0x00FF);
+    const hi = this._read((t + this._x + 1) & 0x00FF);
+
+    this.addrAbs = (hi << 8) | lo;
+    return 0;
+  }
+  
+  IZY() {
+    const t = this._read(this._pc);
+    this._pc++;
+
+    const lo = this._read(t & 0x00FF);
+    const hi = this._read((t + 1) & 0x00FF);
+
+    this.addrAbs = (hi << 8) | lo;
+    this.addrAbs += this._y;
+
+    if ((this.addrAbs & 0xFF00) !== (hi << 8)) {
+      return 1;
+    }
+
+    return 0;
+  }
 
   // Opcodes
   ADC() {}; AND() {}; ASL() {}; BCC() {};
