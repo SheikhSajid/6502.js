@@ -207,32 +207,535 @@ class Olc6502 {
   }
 
   // Opcodes
-  ADC() {}
+  ADC() {
+    this.fetch();
+    const temp = this._a + this.fetched + this._getFlag(this.FLAGS6502.C);
+    this._setFlag(this.FLAGS6502.C, temp > 255);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
+    this._setFlag(this.FLAGS6502.V, (~(this._a ^ this.fetched) & (this._a ^ temp)) & 0x80);
+    this._a = temp & 0x00FF;
+    return 1;
+  }
   
   AND() {
     this.fetch();
     this._a = this._a & this.fetched;
     this._setFlag(this.FLAGS6502.Z, this._a === 0);
-    this._setFlag(this.FLAGS6502.N, this._a & 0b10000000);
+
+    const shouldSetNegative = this._a & 0b10000000; // checks if MSB of register `a` is set
+    this._setFlag(this.FLAGS6502.N, shouldSetNegative); // set negative flag
     return 1;
   }
   
-  ASL() {}; BCC() {};
-  BCS() {}; BEQ() {}; BIT() {}; BMI() {};
-  BNE() {}; BPL() {}; BRK() {}; BVC() {};
-  BVS() {}; CLC() {}; CLD() {}; CLI() {};
-  CLV() {}; CMP() {}; CPX() {}; CPY() {};
-  DEC() {}; DEX() {}; DEY() {}; EOR() {};
-  INC() {}; INX() {}; INY() {}; JMP() {};
-  JSR() {}; LDA() {}; LDX() {}; LDY() {};
-  LSR() {}; NOP() {}; ORA() {}; PHA() {};
-  PHP() {}; PLA() {}; PLP() {}; ROL() {};
-  ROR() {}; RTI() {}; RTS() {}; SBC() {};
-  SEC() {}; SED() {}; SEI() {}; STA() {};
-  STX() {}; STY() {}; TAX() {}; TAY() {};
-  TSX() {}; TXA() {}; TXS() {}; TYA() {};
+  ASL() {
+    this.fetch();
+    const temp = this.fetched << 1;
+    this._setFlag(this.FLAGS6502.C, temp & 0xFF00);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
 
-  XXX() {}
+    if (this.lookup[this._opcode].addrMode === "IMP") {
+      this._a = temp & 0x00FF;
+    } else {
+      this._write(this.addrAbs, temp & 0x00FF);
+    }
+
+    return 0;
+  }
+  
+  BCC() {
+    if (this._getFlag(this.FLAGS6502.C) === 0) {
+      this.cycles++;
+
+      this.addrAbs = this._pc + this.addrRel;
+      const pageBoundaryCrossed = (this._pc & 0xFF00) !== (this.addrAbs & 0xFF00);
+      if (pageBoundaryCrossed) {
+        this.cycles++;
+      }
+
+      this._pc = this.addrAbs;
+    }
+
+    return 0;
+  };
+  
+  BCS() {
+    if (this._getFlag(this.FLAGS6502.C) === 1) {
+      this.cycles++;
+
+      this.addrAbs = this._pc + this.addrRel;
+      const pageBoundaryCrossed = (this._pc & 0xFF00) !== (this.addrAbs & 0xFF00);
+      if (pageBoundaryCrossed) {
+        this.cycles++;
+      }
+
+      this._pc = this.addrAbs;
+    }
+
+    return 0;
+  }
+  
+  BEQ() {
+    if (this._getFlag(this.FLAGS6502.Z) === 1) {
+      this.cycles++;
+
+      this.addrAbs = this._pc + this.addrRel;
+      const pageBoundaryCrossed = (this._pc & 0xFF00) !== (this.addrAbs & 0xFF00);
+      if (pageBoundaryCrossed) {
+        this.cycles++;
+      }
+
+      this._pc = this.addrAbs;
+    }
+
+    return 0;
+  }
+  
+  BIT() {
+    this.fetch();
+    const temp = this._a & this.fetched;
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.N, this.fetched & (1 << 7));
+    this._setFlag(this.FLAGS6502.V, this.fetched & (1 << 6));
+    return 0;
+  }
+  
+  BMI() {
+    if (this._getFlag(this.FLAGS6502.N) === 1) {
+      this.cycles++;
+
+      this.addrAbs = this._pc + this.addrRel;
+      const pageBoundaryCrossed = (this._pc & 0xFF00) !== (this.addrAbs & 0xFF00);
+      if (pageBoundaryCrossed) {
+        this.cycles++;
+      }
+
+      this._pc = this.addrAbs;
+    }
+
+    return 0;
+  }
+  
+  BNE() {
+    if (this._getFlag(this.FLAGS6502.Z) === 0) {
+      this.cycles++;
+
+      this.addrAbs = this._pc + this.addrRel;
+      const pageBoundaryCrossed = (this._pc & 0xFF00) !== (this.addrAbs & 0xFF00);
+      if (pageBoundaryCrossed) {
+        this.cycles++;
+      }
+
+      this._pc = this.addrAbs;
+    }
+
+    return 0;
+  }
+  
+  BPL() {
+    if (this._getFlag(this.FLAGS6502.N) === 0) {
+      this.cycles++;
+
+      this.addrAbs = this._pc + this.addrRel;
+      const pageBoundaryCrossed = (this._pc & 0xFF00) !== (this.addrAbs & 0xFF00);
+      if (pageBoundaryCrossed) {
+        this.cycles++;
+      }
+
+      this._pc = this.addrAbs;
+    }
+
+    return 0;
+  }
+  
+  BRK() {
+    this._pc++;
+    this._setFlag(this.FLAGS6502.I, true);
+    this._write(0x0100 + this._stkp, (this._pc >> 8) & 0x00FF);
+    this._stkp--;
+    this._write(0x0100 + this._stkp, this._pc & 0x00FF);
+    this._stkp--;
+
+    this._setFlag(this.FLAGS6502.B, true);
+    this._write(0x0100 + this._stkp, this._status);
+    this._stkp--;
+    this._setFlag(this.FLAGS6502.B, false);
+
+    this._pc = this._read(0xFFFE) | (this._read(0xFFFF) << 8);
+    return 0;
+  }
+  
+  BVC() {
+    if (this._getFlag(this.FLAGS6502.V) === 0) {
+      this.cycles++;
+
+      this.addrAbs = this._pc + this.addrRel;
+      const pageBoundaryCrossed = (this._pc & 0xFF00) !== (this.addrAbs & 0xFF00);
+      if (pageBoundaryCrossed) {
+        this.cycles++;
+      }
+
+      this._pc = this.addrAbs;
+    }
+
+    return 0;
+  }
+  
+  BVS() {
+    if (this._getFlag(this.FLAGS6502.V) === 1) {
+      this.cycles++;
+
+      this.addrAbs = this._pc + this.addrRel;
+      const pageBoundaryCrossed = (this._pc & 0xFF00) !== (this.addrAbs & 0xFF00);
+      if (pageBoundaryCrossed) {
+        this.cycles++;
+      }
+
+      this._pc = this.addrAbs;
+    }
+
+    return 0;
+  }
+  
+  CLC() {
+    this._setFlag(this.FLAGS6502.C, false);
+    return 0;
+  }
+  
+  CLD() {
+    this._setFlag(this.FLAGS6502.D, false);
+    return 0;
+  }
+  
+  CLI() {
+    this._setFlag(this.FLAGS6502.I, false);
+    return 0;
+  }
+  
+  CLV() {
+    this._setFlag(this.FLAGS6502.V, false);
+    return 0;
+  }
+  
+  CMP() {
+    this.fetch();
+    const temp = this._a - this.fetched;
+    this._setFlag(this.FLAGS6502.C, this._a >= this.fetched);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
+    return 1;
+  }
+  
+  CPX() {
+    this.fetch();
+    const temp = this._x - this.fetched;
+    this._setFlag(this.FLAGS6502.C, this._x >= this.fetched);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
+    return 0;
+  }
+  
+  CPY() {
+    this.fetch();
+    const temp = this._y - this.fetched;
+    this._setFlag(this.FLAGS6502.C, this._y >= this.fetched);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
+    return 0;
+  }
+
+
+  DEC() {
+    this.fetch();
+    const temp = this.fetched - 1;
+    this._write(this.addrAbs, temp & 0x00FF);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
+    return 0;
+  }
+  
+  DEX() {
+    this._x--;
+    this._setFlag(this.FLAGS6502.Z, this._x === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._x & 0x80);
+    return 0;
+  }
+  
+  DEY() {
+    this._y--;
+    this._setFlag(this.FLAGS6502.Z, this._y === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._y & 0x80);
+    return 0;
+  }
+  
+  EOR() {
+    this.fetch();
+    this._a = this._a ^ this.fetched;
+    this._setFlag(this.FLAGS6502.Z, this._a === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._a & 0x80);
+    return 1;
+  }
+
+  INC() {
+    this.fetch();
+    const temp = this.fetched + 1;
+    this._write(this.addrAbs, temp & 0x00FF);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
+    return 0;
+  }
+  
+  INX() {
+    this._x++;
+    this._setFlag(this.FLAGS6502.Z, this._x === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._x & 0x80);
+    return 0;
+  }
+  
+  INY() {
+    this._y++;
+    this._setFlag(this.FLAGS6502.Z, this._y === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._y & 0x80);
+    return 0;
+  }
+  
+  JMP() {
+    this._pc = this.addrAbs;
+    return 0;
+  }
+  
+  JSR() {
+    this._pc--;
+
+    this._write(0x0100 + this._stkp, (this._pc >> 8) & 0x00FF);
+    this._stkp--;
+    this._write(0x0100 + this._stkp, this._pc & 0x00FF);
+    this._stkp--;
+
+    this._pc = this.addrAbs;
+    return 0;
+  }
+  
+  LDA() {
+    this.fetch();
+    this._a = this.fetched;
+    this._setFlag(this.FLAGS6502.Z, this._a === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._a & 0x80);
+    return 1;
+  }
+  
+  LDX() {
+    this.fetch();
+    this._x = this.fetched;
+    this._setFlag(this.FLAGS6502.Z, this._x === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._x & 0x80);
+    return 1;
+  }
+  
+  LDY() {
+    this.fetch();
+    this._y = this.fetched;
+    this._setFlag(this.FLAGS6502.Z, this._y === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._y & 0x80);
+    return 1;
+  }
+
+  LSR() {
+    this.fetch();
+    const temp = this.fetched >> 1;
+    this._setFlag(this.FLAGS6502.C, this.fetched & 0x0001);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
+    if (this.lookup[this._opcode].addrMode === "IMP") {
+      this._a = temp & 0x00FF;
+    } else {
+      this._write(this.addrAbs, temp & 0x00FF);
+    }
+    return 0;
+  }
+
+  NOP() {
+    if (this._opcode === 0xEA) {
+      return 0;
+    }
+
+    return 1;
+  }
+
+  ORA() {
+    this.fetch();
+    this._a = this._a | this.fetched;
+    this._setFlag(this.FLAGS6502.Z, this._a === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._a & 0x80);
+    return 1;
+  }
+
+  PHA() {
+    this._write(0x0100 + this._stkp, this._a);
+    this._stkp--;
+    return 0;
+  }
+
+  PHP() {
+    this._write(0x0100 + this._stkp, this._status | this.FLAGS6502.B | this.FLAGS6502.U);
+    this._setFlag(this.FLAGS6502.B, false);
+    this._setFlag(this.FLAGS6502.U, false);
+    this._stkp--;
+    return 0;
+  }
+
+  PLA() {
+    this._stkp++;
+    this._a = this._read(0x0100 + this._stkp);
+    this._setFlag(this.FLAGS6502.Z, this._a === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._a & 0x80);
+    return 0;
+  }
+
+  PLP() {
+    this._stkp++;
+    this._status = this._read(0x0100 + this._stkp);
+    this._setFlag(this.FLAGS6502.U, true);
+    return 0;
+  }
+
+  ROL() {
+    this.fetch();
+    const temp = (this.fetched << 1) | this._getFlag(this.FLAGS6502.C);
+    this._setFlag(this.FLAGS6502.C, temp & 0xFF00);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
+    if (this.lookup[this._opcode].addrMode === "IMP") {
+      this._a = temp & 0x00FF;
+    } else {
+      this._write(this.addrAbs, temp & 0x00FF);
+    }
+    return 0;
+  }
+
+  ROR() {
+    this.fetch();
+    const temp = (this._getFlag(this.FLAGS6502.C) << 7) | (this.fetched >> 1);
+    this._setFlag(this.FLAGS6502.C, this.fetched & 0x01);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
+    if (this.lookup[this._opcode].addrMode === "IMP") {
+      this._a = temp & 0x00FF;
+    } else {
+      this._write(this.addrAbs, temp & 0x00FF);
+    }
+    return 0;
+  }
+
+  RTI() {
+    this._stkp++;
+    this._status = this._read(0x0100 + this._stkp);
+    this._status &= ~this.FLAGS6502.B;
+    this._status &= ~this.FLAGS6502.U;
+
+    this._stkp++;
+    this._pc = this._read(0x0100 + this._stkp);
+    this._stkp++;
+    this._pc |= this._read(0x0100 + this._stkp) << 8;
+    return 0;
+  }
+
+  RTS() {
+    this._stkp++;
+    this._pc = this._read(0x0100 + this._stkp);
+    this._stkp++;
+    this._pc |= this._read(0x0100 + this._stkp) << 8;
+
+    this._pc++;
+    return 0;
+  }
+
+  SBC() {
+    this.fetch();
+    const value = this.fetched ^ 0x00FF;
+    const temp = this._a + value + this._getFlag(this.FLAGS6502.C);
+    this._setFlag(this.FLAGS6502.C, temp & 0xFF00);
+    this._setFlag(this.FLAGS6502.Z, (temp & 0x00FF) === 0x00);
+    this._setFlag(this.FLAGS6502.V, (temp ^ this._a) & (temp ^ value) & 0x0080);
+    this._setFlag(this.FLAGS6502.N, temp & 0x80);
+    this._a = temp & 0x00FF;
+    return 1;
+  }
+
+  SEC() {
+    this._setFlag(this.FLAGS6502.C, true);
+    return 0;
+  }
+
+  SED() {
+    this._setFlag(this.FLAGS6502.D, true);
+    return 0;
+  }
+
+  SEI() {
+    this._setFlag(this.FLAGS6502.I, true);
+    return 0;
+  }
+
+  STA() {
+    this._write(this.addrAbs, this._a);
+    return 0;
+  }
+
+  STX() {
+    this._write(this.addrAbs, this._x);
+    return 0;
+  }
+
+  STY() {
+    this._write(this.addrAbs, this._y);
+    return 0;
+  }
+
+  TAX() {
+    this._x = this._a;
+    this._setFlag(this.FLAGS6502.Z, this._x === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._x & 0x80);
+    return 0;
+  }
+
+  TAY() {
+    this._y = this._a;
+    this._setFlag(this.FLAGS6502.Z, this._y === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._y & 0x80);
+    return 0;
+  }
+
+  TSX() {
+    this._x = this._stkp;
+    this._setFlag(this.FLAGS6502.Z, this._x === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._x & 0x80);
+    return 0;
+  }
+
+  TXA() {
+    this._a = this._x;
+    this._setFlag(this.FLAGS6502.Z, this._a === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._a & 0x80);
+    return 0;
+  }
+
+  TXS() {
+    this._stkp = this._x;
+    return 0;
+  }
+
+  TYA() {
+    this._a = this._y;
+    this._setFlag(this.FLAGS6502.Z, this._a === 0x00);
+    this._setFlag(this.FLAGS6502.N, this._a & 0x80);
+    return 0;
+  }
+
+  XXX() {
+    return 0;
+  }
 
   // Signals
   clock() {
@@ -246,10 +749,10 @@ class Olc6502 {
     this._pc++;
 
     // Lookup the opcode and execute the instruction
-    const instruction = this.lookup[this._opcode];
-    this.cycles = instruction.cycles;
-    const additionalCycles1 = this[instruction.addrMode]();
-    const additionalCycles2 = this[instruction.name]();
+    const { addrMode, cycles, name } = this.lookup[this._opcode];
+    this.cycles = cycles;
+    const additionalCycles1 = this[addrMode]();
+    const additionalCycles2 = this[name === '???' ? 'XXX' : name]();
 
     this.cycles += (additionalCycles1 & additionalCycles2);
   }
