@@ -14,7 +14,7 @@ class Olc6502 {
     this.fetched = 0b00000000;  // Represents the byte we fetched
     this.addrAbs = 0b0000000000000000;  // Represents a full 16-bit address
     this.addrRel = 0b0000000000000000;  // Represents a relative address
-    this.opcode = 0b00000000;  // Represents the current opcode
+    this._opcode = 0b00000000;  // Represents the current opcode
     this.cycles = 0;  // Represents the number of cycles the current instruction requires
 
     /**
@@ -74,7 +74,14 @@ class Olc6502 {
     this.bus = bus;
   }
 
-  fetch() {}
+  fetch() {
+    if (this.lookup[this._opcode].addrMode === this.IMP) {
+      return this.fetched;
+    }
+
+    this.fetched = this._read(this.addrAbs);
+    return this.fetched;
+  }
 
   // Addressing Modes
   IMP() {
@@ -206,7 +213,17 @@ class Olc6502 {
   }
 
   // Opcodes
-  ADC() {}; AND() {}; ASL() {}; BCC() {};
+  ADC() {}
+  
+  AND() {
+    this.fetch();
+    this._a = this._a & this.fetched;
+    this._setFlag(this.FLAGS6502.Z, this._a === 0);
+    this._setFlag(this.FLAGS6502.N, this._a & 0b10000000);
+    return 1;
+  }
+  
+  ASL() {}; BCC() {};
   BCS() {}; BEQ() {}; BIT() {}; BMI() {};
   BNE() {}; BPL() {}; BRK() {}; BVC() {};
   BVS() {}; CLC() {}; CLD() {}; CLI() {};
@@ -231,11 +248,11 @@ class Olc6502 {
     }
 
     // Read from the program counter
-    const opcode = this._read(this._pc); // 1 byte
+    this._opcode = this._read(this._pc); // 1 byte
     this._pc++;
 
     // Lookup the opcode and execute the instruction
-    const instruction = this.lookup[opcode];
+    const instruction = this.lookup[this._opcode];
     this.cycles = instruction.cycles;
     const additionalCycles1 = this[instruction.addrMode]();
     const additionalCycles2 = this[instruction.operate]();
@@ -342,9 +359,9 @@ class Instruction {
 
     /**
      * The addressing mode of the instruction.
-     * @type {string}
+     * @type {function(): number}
      */
-    this.addrMode = '';
+    this.addrMode = () => 0;
 
     /**
      * The opcode of the instruction.
