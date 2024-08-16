@@ -879,41 +879,47 @@ class Olc6502 {
 
       let sInst = '$' + addr.toString(16).padStart(4, '0') + ': ';
       let opcode = this._read(addr);
+      let instruction = this.lookup[opcode];
       addr++;
-      sInst += this.lookup[opcode].name + ' ';
+      sInst += instruction.name + ' ';
 
-      if (this.lookup[opcode].addrMode === "IMP") {
-        sInst += " {IMP}";
-      } else if (this.lookup[opcode].addrMode === "IMM") {
-        value = this._read(addr);
-        addr++;
-        sInst += "#$" + value.toString(16).padStart(2, '0') + " {IMM}";
-      } else if (
-        this.lookup[opcode].addrMode === "ZP0" ||
-        this.lookup[opcode].addrMode === "ZPX" ||
-        this.lookup[opcode].addrMode === "ZPY" ||
-        this.lookup[opcode].addrMode === "IZX" ||
-        this.lookup[opcode].addrMode === "IZY"
-      ) {
-        lo = this._read(addr);
-        addr++;
-        hi = 0x00;
-        sInst += "$" + lo.toString(16).padStart(2, '0') + ` {${this.lookup[opcode].addrMode}}`;
-      } else if (
-        this.lookup[opcode].addrMode === "ABS" ||
-        this.lookup[opcode].addrMode === "ABX" ||
-        this.lookup[opcode].addrMode === "ABY" ||
-        this.lookup[opcode].addrMode === "IND"
-      ) {
-        lo = this._read(addr);
-        addr++;
-        hi = this._read(addr);
-        addr++;
-        sInst += "$" + (hi << 8 | lo).toString(16).padStart(4, '0') + ` {${this.lookup[opcode].addrMode}}`;
-      } else if (this.lookup[opcode].addrMode === "REL") {
-        value = this._read(addr);
-        addr++;
-        sInst += "$" + value.toString(16).padStart(2, '0') + ` [$${(addr + value).toString(16).padStart(4, '0')}] {${this.lookup[opcode].addrMode}}`;
+      switch (instruction.addrMode) {
+        case "IMP":
+          sInst += " {IMP}";
+          break;
+        case "IMM":
+          value = this._read(addr);
+          addr++;
+          sInst += "#$" + value.toString(16).padStart(2, '0') + " {IMM}";
+          break;
+        case "ZP0":
+        case "ZPX":
+        case "ZPY":
+        case "IZX":
+        case "IZY":
+          lo = this._read(addr);
+          addr++;
+          hi = 0x00;
+          sInst += "$" + lo.toString(16).padStart(2, '0') + ` {${instruction.addrMode}}`;
+          break;
+        case "ABS":
+        case "ABX":
+        case "ABY":
+        case "IND":
+          lo = this._read(addr);
+          addr++;
+          hi = this._read(addr);
+          addr++;
+          sInst += "$" + (hi << 8 | lo).toString(16).padStart(4, '0') + ` {${instruction.addrMode}}`;
+          break;
+        case "REL":
+          value = this._read(addr);
+          addr++;
+          sInst += "$" + value.toString(16).padStart(2, '0') + ` [$${(addr + value).toString(16).padStart(4, '0')}] {${instruction.addrMode}}`;
+          break;
+        default:
+          // Handle unknown addressing mode if necessary
+          break;
       }
 
       console.log(sInst);
