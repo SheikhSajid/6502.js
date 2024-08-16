@@ -1,39 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="stylesheet" href="style.css" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Russo+One&subset=latin,cyrillic"
+      rel="stylesheet"
+      type="text/css"
+    />
 
-  <style>
-    main {
-      display: flex;
-      justify-content: space-around;
-      padding: 20px;
-    }
-  </style>
-</head>
+    <link
+      rel="stylesheet"
+      media="screen"
+      href="https://fontlibrary.org/face/segment7"
+      type="text/css"
+    />
 
-<body>
-  <main>
-    <div class="registers">
-      <h1>Registers</h1>
-      <div>Register 1</div>
-      <div id="register1"></div>
-      <div>Register 2</div>
-      <div id="register2"></div>
-      <div>Register 3</div>
-      <div id="register3"></div>
-      <div>Register 4</div>
-      <div id="register4"></div>
+    <title>IDE</title>
+
+    <script src="src/script.js"></script>
+  </head>
+  <body>
+    <div class="container col">
+      <!-- registers -->
+      <div class="row p-1">
+        <div class="row registers p-1 space-around">
+          <div class="label">Registers</div>
+          <!-- register columns -->
+          <div class="col">
+            <div class="row space-bet">
+              <span class="register-name">status</span>
+              <span class="register-value" id="status">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">A</span>
+              <span class="register-value" id="a">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">X</span>
+              <span class="register-value" id="x">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">Y</span>
+              <span class="register-value" id="y">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+          </div>
+          <div class="col">
+            <div class="row space-bet">
+              <span class="register-name">PC</span>
+              <span class="register-value" id="pc">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">%rdi &nbsp;0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">%rbp 0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">%rsp 0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+          </div>
+          <div class="col">
+            <div class="row space-bet">
+              <span class="register-name">%r8 &nbsp;&nbsp;0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">%r9 &nbsp;&nbsp;0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">%r10 0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">%r11 &nbsp;0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+          </div>
+          <div class="col">
+            <div class="row space-bet">
+              <span class="register-name">%r12 0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">%r13 0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">%r14 0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+            <div class="row space-bet">
+              <span class="register-name">%r15 0x</span>
+              <span class="register-value">AA FF B6 FC AA FF B6 FC</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex-grow: 1" class="row p-1">
+        <div class="row relative code-container section-border">
+          <div class="label">Code</div>
+          <div class="col editor-container p-1">
+            <textarea class="editor"></textarea>
+          </div>
+          <div class="p-1 bg-dark col controls">
+            <div class="button-container">
+              <button class="key" onclick="runInstruction()">
+                <div class="key-center">Run</div>
+              </button>
+            </div>
+            <div class="button-container">
+              <button style="background: #db4343;" class="key">
+                <div class="key-center">Reset</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex-grow: 1; margin-left: 10px;" class="col">
+          <div class="output-container section-border relative">
+            <div class="label">Output</div>
+          </div>
+
+          <div
+            style="flex-grow: 1;"
+            class="memory-container section-border relative p-1"
+          >
+            <div class="label">Memory</div>
+          </div>
+        </div>
+        <div class=""></div>
+      </div>
     </div>
-  
-    <div class="instruction">
-      <h1>Current Instruction</h1>
-      <div id="instruction"></div>
-    </div>
-  </main>
 
-  <script src="src/script.js"></script>
-</body>
+    <script src="src/init.js"></script>
+  </body>
 </html>

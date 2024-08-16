@@ -868,6 +868,10 @@ class Olc6502 {
     this.bus.write(address, data);
   }
 
+  complete() {
+    return this.cycles === 0;
+  }
+
   // This function logs the state of the CPU
   disassemble(start, stop) {
     let addr = start;
