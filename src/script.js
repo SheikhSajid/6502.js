@@ -757,9 +757,71 @@ class Olc6502 {
     this.cycles += (additionalCycles1 & additionalCycles2);
   }
 
-  reset() {}
-  irq() {}
-  nmi() {}
+  reset() {
+    this._a = 0;
+    this._x = 0;
+    this._y = 0;
+    this._stkp = 0xFD;
+    this._status = 0x00 | this.FLAGS6502.U;
+
+    // Programmer should store the reset instruction at 0xFFFC
+    //  ? What does it mean by reset?
+    //  ? Is reset an interrupt or similar?
+    this.addrAbs = 0xFFFC;
+    const lo = this._read(this.addrAbs + 0);
+    const hi = this._read(this.addrAbs + 1);
+
+    this._pc = (hi << 8) | lo;
+
+    this.addrRel = 0x0000;
+    this.addrAbs = 0x0000;
+    this.fetched = 0x00;
+
+    this.cycles = 8;
+  }
+
+  irq() {
+    if (this._getFlag(this.FLAGS6502.I) === 0) {
+      this._write(0x0100 + this._stkp, (this._pc >> 8) & 0x00FF);
+      this._stkp--;
+      this._write(0x0100 + this._stkp, this._pc & 0x00FF);
+      this._stkp--;
+
+      this._setFlag(this.FLAGS6502.B, false);
+      this._setFlag(this.FLAGS6502.U, true);
+      this._setFlag(this.FLAGS6502.I, true);
+      this._write(0x0100 + this._stkp, this._status);
+      this._stkp--;
+
+      // ? is this an interrupt handler?
+      this.addrAbs = 0xFFFE;
+      const lo = this._read(this.addrAbs + 0);
+      const hi = this._read(this.addrAbs + 1);
+      this._pc = (hi << 8) | lo;
+
+      this.cycles = 7;
+    }
+  }
+
+  nmi() {
+    this._write(0x0100 + this._stkp, (this._pc >> 8) & 0x00FF);
+    this._stkp--;
+    this._write(0x0100 + this._stkp, this._pc & 0x00FF);
+    this._stkp--;
+
+    this._setFlag(this.FLAGS6502.B, false);
+    this._setFlag(this.FLAGS6502.U, true);
+    this._setFlag(this.FLAGS6502.I, true);
+    this._write(0x0100 + this._stkp, this._status);
+    this._stkp--;
+
+    this.addrAbs = 0xFFFA;
+    const lo = this._read(this.addrAbs + 0);
+    const hi = this._read(this.addrAbs + 1);
+    this._pc = (hi << 8) | lo;
+
+    this.cycles = 8;
+  }
 
   // Private
   /**
